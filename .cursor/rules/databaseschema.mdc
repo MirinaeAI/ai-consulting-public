@@ -1,0 +1,195 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Database Schema
+
+## Tables
+
+### `categories`
+- **Description**: 카테고리 정보
+- **Columns**:
+    - `id` (uuid, PK): 카테고리 ID
+    - `name` (text, Unique): 카테고리 이름
+    - `description` (text): 카테고리 설명
+- **Relationships**:
+    - `tool_categories.category_id` -> `categories.id`
+
+### `tool_categories`
+- **Description**: 도구와 카테고리 연결 정보
+- **Columns**:
+    - `tool_id` (uuid, PK, FK to `tools.id`): 도구 ID
+    - `category_id` (uuid, PK, FK to `categories.id`): 카테고리 ID
+- **Relationships**:
+    - `tool_categories.tool_id` -> `tools.id`
+    - `tool_categories.category_id` -> `categories.id`
+
+### `feedback`
+- **Description**: 사용자 피드백 정보
+- **Columns**:
+    - `id` (uuid, PK): 피드백 ID
+    - `user_id` (uuid, FK to `auth.users.id`): 사용자 ID
+    - `consultation_id` (uuid, FK to `consultations.id`): 컨설팅 ID
+    - `rating` (integer, Check: `rating >= 1 AND rating <= 5`): 평점 (1-5)
+    - `comment` (text): 코멘트
+    - `created_at` (timestamp with time zone): 생성일
+- **Relationships**:
+    - `feedback.consultation_id` -> `consultations.id`
+    - `feedback.user_id` -> `auth.users.id`
+
+### `favorites`
+- **Description**: 사용자 즐겨찾기 정보
+- **Columns**:
+    - `id` (uuid, PK): 즐겨찾기 ID
+    - `user_id` (uuid, FK to `auth.users.id`): 사용자 ID
+    - `tool_id` (uuid, FK to `tools.id`): 도구 ID
+    - `created_at` (timestamp with time zone): 생성일
+- **Relationships**:
+    - `favorites.tool_id` -> `tools.id`
+    - `favorites.user_id` -> `auth.users.id`
+
+### `admins`
+- **Description**: 관리자 정보
+- **Columns**:
+    - `user_id` (uuid, PK, FK to `auth.users.id`): 사용자 ID (관리자)
+    - `created_at` (timestamp with time zone): 생성일
+- **Relationships**:
+    - `admins.user_id` -> `auth.users.id`
+
+### `subscriptions`
+- **Description**: 사용자 구독 정보
+- **Columns**:
+    - `id` (uuid, PK): 구독 ID
+    - `user_id` (uuid, FK to `auth.users.id`, Unique): 사용자 ID
+    - `plan` (subscription_plan, Default: 'free'): 구독 플랜 ('free', 'premium')
+    - `status` (subscription_status, Default: 'trial'): 구독 상태 ('active', 'cancelled', 'expired', 'trial')
+    - `starts_at` (timestamp with time zone, Default: now()): 구독 시작일
+    - `ends_at` (timestamp with time zone): 구독 종료일
+    - `trial_ends_at` (timestamp with time zone, Default: now() + 7 days): 트라이얼 종료일
+    - `stripe_subscription_id` (text): Stripe 구독 ID
+    - `stripe_customer_id` (text): Stripe 고객 ID
+    - `created_at` (timestamp with time zone): 생성일
+    - `updated_at` (timestamp with time zone): 수정일
+- **Relationships**:
+    - `subscriptions.user_id` -> `auth.users.id`
+
+### `tools`
+- **Description**: AI 도구 정보
+- **Columns**:
+    - `id` (uuid, PK): 도구 ID
+    - `name` (text, Unique): 도구 이름
+    - `description` (text): 도구 설명
+    - `url` (text, Unique): 도구 URL
+    - `price_min` (numeric, Default: 0): 최소 가격
+    - `price_max` (numeric): 최대 가격
+    - `is_free_tier` (boolean, Default: false): 무료 티어 여부
+    - `created_at` (timestamp with time zone): 생성일
+    - `updated_at` (timestamp with time zone): 수정일
+    - `monthly_visits` (numeric): 월간 방문자 수
+    - `description_korean` (text): 한글 설명
+    - `is_promoted` (boolean, Default: false): 프로모션 여부
+
+- **Relationships**:
+    - `tool_categories.tool_id` -> `tools.id`
+    - `favorites.tool_id` -> `tools.id`
+    - `recommendations.tool_id` -> `tools.id`
+
+### `recommendations`
+- **Description**: 컨설팅 기반 추천 정보
+- **Columns**:
+    - `id` (uuid, PK): 추천 ID
+    - `consultation_id` (uuid, FK to `consultations.id`): 컨설팅 ID
+    - `tool_id` (uuid, FK to `tools.id`): 추천된 도구 ID
+    - `order` (integer): 추천 순서
+    - `created_at` (timestamp with time zone): 생성일
+- **Relationships**:
+    - `recommendations.consultation_id` -> `consultations.id`
+    - `recommendations.tool_id` -> `tools.id`
+
+### `tool_submissions`
+- **Description**: 사용자 도구 제출 정보
+- **Columns**:
+    - `id` (uuid, PK): 제출 ID
+    - `name` (text): 도구 이름
+    - `description` (text): 도구 설명
+    - `url` (text): 도구 URL
+    - `submitter_email` (text): 제출자 이메일
+    - `price_min` (numeric, Default: 0): 최소 가격
+    - `price_max` (numeric): 최대 가격
+    - `is_free_tier` (boolean, Default: false): 무료 티어 여부
+    - `categories` (ARRAY of text): 카테고리 목록
+    - `status` (USER-DEFINED `submission_status` ["pending", "approved", "rejected"], Default: 'pending'): 제출 상태
+    - `created_at` (timestamp with time zone): 생성일
+    - `updated_at` (timestamp with time zone): 수정일
+- **Relationships**: (None)
+
+### `consultations`
+- **Description**: 사용자 컨설팅 요청 정보
+- **Columns**:
+    - `id` (uuid, PK): 컨설팅 ID
+    - `user_id` (uuid, FK to `auth.users.id`): 사용자 ID
+    - `purpose` (text): 컨설팅 목적
+    - `org_size` (text): 조직 규모
+    - `budget` (numeric): 예산
+    - `created_at` (timestamp with time zone): 생성일
+- **Relationships**:
+    - `recommendations.consultation_id` -> `consultations.id`
+    - `feedback.consultation_id` -> `consultations.id`
+    - `consultations.user_id` -> `auth.users.id`
+
+### `advertiser_inquiries`
+- **Description**: 광고주 문의 정보
+- **Columns**:
+    - `id` (uuid, PK): 문의 ID
+    - `company_name` (text): 회사명
+    - `contact_name` (text): 담당자명
+    - `email` (text): 이메일
+    - `phone` (text): 전화번호
+    - `budget` (numeric): 광고 예산
+    - `message` (text): 문의 내용
+    - `status` (USER-DEFINED `inquiry_status` ["pending", "contacted", "completed", "rejected"], Default: 'pending'): 처리 상태
+    - `created_at` (timestamp with time zone): 생성일
+    - `updated_at` (timestamp with time zone): 수정일
+- **Relationships**: (None)
+
+## Enums
+
+### `subscription_plan`
+- `free`: 무료 플랜
+- `premium`: 프리미엄 플랜
+
+### `subscription_status`
+- `active`: 활성 구독
+- `cancelled`: 취소된 구독
+- `expired`: 만료된 구독  
+- `trial`: 무료 체험
+
+### `submission_status`
+- `pending`: 검토 대기
+- `approved`: 승인됨
+- `rejected`: 거부됨
+
+### `inquiry_status`
+- `pending`: 접수됨
+- `contacted`: 연락 완료
+- `completed`: 처리 완료
+- `rejected`: 거부됨
+
+## Functions
+
+### `has_active_subscription(user_uuid uuid)`
+- **Description**: 사용자가 활성 구독을 가지고 있는지 확인
+- **Returns**: boolean
+
+### `has_active_trial(user_uuid uuid)`
+- **Description**: 사용자가 활성 트라이얼을 가지고 있는지 확인
+- **Returns**: boolean
+
+### `can_use_consultation(user_uuid uuid)`
+- **Description**: 사용자가 AI 컨설팅을 이용할 수 있는지 확인 (구독 또는 트라이얼)
+- **Returns**: boolean
+
+### `create_user_subscription()`
+- **Description**: 새 사용자 가입 시 자동으로 무료 트라이얼 구독을 생성하는 트리거 함수
+- **Trigger**: `on_auth_user_created` AFTER INSERT ON auth.users
